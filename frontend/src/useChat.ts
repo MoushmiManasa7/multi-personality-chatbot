@@ -1,0 +1,153 @@
+import { useEffect, useState } from "react";
+import type { ChatItem, Message, Personality, PersonalityKey } from "./types";
+import { PERSONALITY_ORDER } from "./personalities";
+
+type ChatState = {
+  personalities: Record<PersonalityKey, Personality> | null;
+  active: PersonalityKey;
+  items: ChatItem[];
+  streaming: boolean;
+  waitingForFirstToken: boolean;
+};
+
+export function useChat() {
+  const [state, setState] = useState<ChatState>({
+    personalities: null,
+    active: "friend",
+    items: [],
+    streaming: false,
+    waitingForFirstToken: false,
+  });
+
+  useEffect(() => {
+    fetch("/api/personalities")
+      .then((r) => r.json())
+      .then((data: Record<string, Personality>) => {
+        setState((s) => ({
+          ...s,
+          personalities: data as Record<PersonalityKey, Personality>,
+          active: s.active in data
+            ? s.active
+            : (PERSONALITY_ORDER.find((k) => k in data) ?? s.active),
+        }));
+      })
+      .catch(() => {
+        setState((s) => ({
+          ...s,
+          items: [{ role: "system", content: "Can't reach the backend. Is server.py running on port 8000?" }],
+        }));
+      });
+  }, []);
+
+  function setActive(active: PersonalityKey) {
+    setState((s) => (s.active === active ? s : { ...s, active, items: [] }));
+  }
+
+  function clearChat() {
+    setState((s) => ({ ...s, items: [] }));
+  }
+
+  function appendItem(item: ChatItem) {
+    setState((s) => ({ ...s, items: [...s.items, item] }));
+  }
+
+  function updateLastAssistant(append: string) {
+    setState((s) => {
+      const next = [...s.items];
+      const last = next[next.length - 1] as Message;
+      next[next.length - 1] = { ...last, content: last.content + append };
+      return { ...s, items: next };
+    });
+  }
+
+  async function sendMessage(text: string) {
+    if (!text.trim() || state.streaming) return;
+
+    const userMessage: Message = { role: "user", content: text.trim() };
+    const apiMessages = [
+      ...state.items.filter((i): i is Message => i.role !== "system"),
+      userMessage,
+    ];
+
+    setState((s) => ({
+      ...s,
+      items: [...s.items, userMessage],
+      streaming: true,
+      waitingForFirstToken: true,
+    }));
+
+    let assistantPersonality: PersonalityKey = state.active;
+    let assistantStarted = false;
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: apiMessages.map((m) => ({ role: m.role, content: m.content })),
+          personality: state.active,
+        }),
+      });
+
+      if (!response.ok || !response.body) throw new Error(`Backend error: ${response.status}`);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+
+        for (const event of events) {
+          const line = event.split("\n").find((l) => l.startsWith("data: "));
+          if (!line) continue;
+          const payload = JSON.parse(line.slice(6));
+
+          if (payload.type === "mode") {
+            assistantPersonality = payload.mode as PersonalityKey;
+            setState((s) => ({
+              ...s,
+              active: assistantPersonality,
+              items: [...s.items, { role: "system", content: `Switched to ${payload.name}` }],
+            }));
+          } else if (payload.type === "text") {
+            if (!assistantStarted) {
+              assistantStarted = true;
+              setState((s) => ({
+                ...s,
+                waitingForFirstToken: false,
+                items: [...s.items, {
+                  role: "assistant",
+                  content: payload.text,
+                  personality: assistantPersonality,
+                }],
+              }));
+            } else {
+              updateLastAssistant(payload.text);
+            }
+          } else if (payload.type === "error") {
+            setState((s) => ({ ...s, waitingForFirstToken: false }));
+            appendItem({ role: "system", content: `Error: ${payload.message}` });
+          }
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendItem({ role: "system", content: `Error: ${msg}` });
+    } finally {
+      setState((s) => ({ ...s, streaming: false, waitingForFirstToken: false }));
+    }
+  }
+
+  return {
+    ...state,
+    setActive,
+    clearChat,
+    sendMessage,
+  };
+}
