@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useImperativeHandle, useRef, forwardRef } from "react";
 import { SendIcon } from "../icons";
 
 type Props = {
@@ -9,8 +9,17 @@ type Props = {
   placeholder: string;
 };
 
-export function Composer({ value, onChange, onSend, disabled, placeholder }: Props) {
+export type ComposerHandle = { focus: () => void };
+
+export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
+  { value, onChange, onSend, disabled, placeholder },
+  handleRef,
+) {
   const ref = useRef<HTMLTextAreaElement>(null);
+
+  useImperativeHandle(handleRef, () => ({
+    focus: () => ref.current?.focus(),
+  }));
 
   useEffect(() => {
     if (!ref.current) return;
@@ -49,4 +58,4 @@ export function Composer({ value, onChange, onSend, disabled, placeholder }: Pro
       <p className="composer-hint">Enter to send &middot; Shift + Enter for newline</p>
     </div>
   );
-}
+});

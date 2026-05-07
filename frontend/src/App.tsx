@@ -5,7 +5,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { EmptyState } from "./components/EmptyState";
 import { ChatMessage, TypingIndicator } from "./components/ChatMessage";
-import { Composer } from "./components/Composer";
+import { Composer, type ComposerHandle } from "./components/Composer";
 import "./App.css";
 
 export default function App() {
@@ -13,6 +13,7 @@ export default function App() {
   const [input, setInput] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<ComposerHandle>(null);
 
   useEffect(() => {
     if (!autoScroll) return;
@@ -81,7 +82,10 @@ export default function App() {
             <EmptyState
               personalities={chat.personalities}
               active={chat.active}
-              onSuggest={(s) => setInput(s)}
+              onSuggest={(s) => {
+                setInput(s);
+                composerRef.current?.focus();
+              }}
             />
           )}
 
@@ -95,6 +99,7 @@ export default function App() {
         </div>
 
         <Composer
+          ref={composerRef}
           value={input}
           onChange={setInput}
           onSend={handleSend}

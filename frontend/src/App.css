@@ -485,6 +485,8 @@ textarea { font-family: inherit; font-size: 1rem; }
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  height: 100vh;
   background: transparent;
 }
 
