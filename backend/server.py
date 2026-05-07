@@ -1,12 +1,17 @@
 import json
 import os
+from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncIterator, Literal
 
+from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 PERSONALITIES = {
     "mentor": {
@@ -157,11 +162,21 @@ class ChatRequest(BaseModel):
     personality: PersonalityKey
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if not os.environ.get("GROQ_API_KEY"):
+        raise RuntimeError(
+            "GROQ_API_KEY is not set. Get a free key at https://console.groq.com "
+            "and put it in backend/.env (see .env.example) or export it in your shell."
+        )
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):(517[0-9])$",
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -229,7 +244,5 @@ async def chat(req: ChatRequest):
 
 
 if __name__ == "__main__":
-    if not os.environ.get("GROQ_API_KEY"):
-        raise SystemExit("Set GROQ_API_KEY before starting the server.")
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
