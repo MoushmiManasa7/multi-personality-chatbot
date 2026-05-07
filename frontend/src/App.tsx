@@ -11,20 +11,50 @@ import "./App.css";
 export default function App() {
   const chat = useChat();
   const [input, setInput] = useState("");
+  const [autoScroll, setAutoScroll] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [chat.items, chat.waitingForFirstToken]);
+    if (!autoScroll) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior: chat.streaming ? "auto" : "smooth",
+    });
+  }, [chat.items, chat.waitingForFirstToken, chat.streaming, autoScroll]);
+
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setAutoScroll(distanceFromBottom < 80);
+  }
 
   async function handleSend() {
     const text = input.trim();
     if (!text) return;
+    const saved = input;
     setInput("");
-    await chat.sendMessage(text);
+    setAutoScroll(true);
+    const ok = await chat.sendMessage(text);
+    if (!ok) setInput(saved);
   }
 
   if (!chat.personalities) {
+    const errorNote = chat.items.find((i) => i.role === "system");
+    if (errorNote) {
+      return (
+        <div className="loading">
+          <div className="loading-error">
+            <div className="loading-error-icon">!</div>
+            <h2>Backend unreachable</h2>
+            <p>{errorNote.content}</p>
+            <button onClick={() => location.reload()}>Reload</button>
+          </div>
+        </div>
+      );
+    }
     return <div className="loading"><div className="loading-spinner" /></div>;
   }
 
@@ -46,7 +76,7 @@ export default function App() {
       <main className="main">
         <Header personalities={chat.personalities} active={chat.active} />
 
-        <div className="messages" ref={scrollRef}>
+        <div className="messages" ref={scrollRef} onScroll={handleScroll}>
           {chat.items.length === 0 && (
             <EmptyState
               personalities={chat.personalities}

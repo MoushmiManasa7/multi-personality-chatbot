@@ -10,6 +10,12 @@ type ChatState = {
   waitingForFirstToken: boolean;
 };
 
+type SsePayload =
+  | { type: "mode"; mode: PersonalityKey; name: string }
+  | { type: "text"; text: string }
+  | { type: "done" }
+  | { type: "error"; message: string };
+
 export function useChat() {
   const [state, setState] = useState<ChatState>({
     personalities: null,
@@ -20,7 +26,7 @@ export function useChat() {
   });
 
   useEffect(() => {
-    fetch("/api/personalities")
+    fetch("/api/personalities", { signal: AbortSignal.timeout(5000) })
       .then((r) => r.json())
       .then((data: Record<string, Personality>) => {
         setState((s) => ({
@@ -31,10 +37,13 @@ export function useChat() {
             : (PERSONALITY_ORDER.find((k) => k in data) ?? s.active),
         }));
       })
-      .catch(() => {
+      .catch((err) => {
+        const msg = err?.name === "TimeoutError"
+          ? "Backend timed out (5s). Is server.py running on port 8000?"
+          : "Can't reach the backend. Is server.py running on port 8000?";
         setState((s) => ({
           ...s,
-          items: [{ role: "system", content: "Can't reach the backend. Is server.py running on port 8000?" }],
+          items: [{ role: "system", content: msg }],
         }));
       });
   }, []);
@@ -53,15 +62,16 @@ export function useChat() {
 
   function updateLastAssistant(append: string) {
     setState((s) => {
+      const last = s.items[s.items.length - 1];
+      if (!last || last.role !== "assistant") return s;
       const next = [...s.items];
-      const last = next[next.length - 1] as Message;
       next[next.length - 1] = { ...last, content: last.content + append };
       return { ...s, items: next };
     });
   }
 
-  async function sendMessage(text: string) {
-    if (!text.trim() || state.streaming) return;
+  async function sendMessage(text: string): Promise<boolean> {
+    if (!text.trim() || state.streaming) return false;
 
     const userMessage: Message = { role: "user", content: text.trim() };
     const apiMessages = [
@@ -106,7 +116,12 @@ export function useChat() {
         for (const event of events) {
           const line = event.split("\n").find((l) => l.startsWith("data: "));
           if (!line) continue;
-          const payload = JSON.parse(line.slice(6));
+          let payload: SsePayload;
+          try {
+            payload = JSON.parse(line.slice(6)) as SsePayload;
+          } catch {
+            continue;
+          }
 
           if (payload.type === "mode") {
             assistantPersonality = payload.mode as PersonalityKey;
@@ -142,6 +157,7 @@ export function useChat() {
     } finally {
       setState((s) => ({ ...s, streaming: false, waitingForFirstToken: false }));
     }
+    return true;
   }
 
   return {
