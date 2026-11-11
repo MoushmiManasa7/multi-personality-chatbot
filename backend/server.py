@@ -1,6 +1,5 @@
 import json
 import os
-from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator, Literal
 
@@ -162,17 +161,7 @@ class ChatRequest(BaseModel):
     personality: PersonalityKey
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    if not os.environ.get("GROQ_API_KEY"):
-        raise RuntimeError(
-            "GROQ_API_KEY is not set. Get a free key at https://console.groq.com "
-            "and put it in backend/.env (see .env.example) or export it in your shell."
-        )
-    yield
-
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -181,10 +170,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = AsyncOpenAI(
-    api_key=os.environ.get("GROQ_API_KEY", ""),
-    base_url=GROQ_BASE_URL,
-)
+def get_client() -> AsyncOpenAI:
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="GROQ_API_KEY is not set. Add it to Vercel environment variables.",
+        )
+    return AsyncOpenAI(api_key=api_key, base_url=GROQ_BASE_URL)
 
 
 def sse(payload: dict) -> str:
@@ -201,6 +194,7 @@ async def list_personalities():
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
+    client = get_client()
     if req.personality not in PERSONALITIES:
         raise HTTPException(status_code=400, detail="Unknown personality")
     if not req.messages or req.messages[-1].role != "user":
