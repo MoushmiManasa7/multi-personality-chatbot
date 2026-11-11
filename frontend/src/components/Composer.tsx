@@ -1,5 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, forwardRef } from "react";
-import { SendIcon } from "../icons";
+import { motion } from "framer-motion";
+import { Send } from "lucide-react";
 
 type Props = {
   value: string;
@@ -24,7 +25,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   useEffect(() => {
     if (!ref.current) return;
     ref.current.style.height = "auto";
-    ref.current.style.height = `${Math.min(ref.current.scrollHeight, 160)}px`;
+    ref.current.style.height = `${Math.min(ref.current.scrollHeight, 180)}px`;
   }, [value]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -46,16 +47,20 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           rows={1}
           disabled={disabled}
         />
-        <button
+        <motion.button
           className="send-btn"
           onClick={onSend}
           disabled={disabled || !value.trim()}
-          aria-label="Send"
+          aria-label="Send message"
+          whileHover={{ scale: disabled ? 1 : 1.05 }}
+          whileTap={{ scale: disabled ? 1 : 0.95 }}
         >
-          <SendIcon />
-        </button>
+          <Send size={18} />
+        </motion.button>
       </div>
-      <p className="composer-hint">Enter to send &middot; Shift + Enter for newline</p>
+      <p className="composer-hint">
+        Enter to send · Shift + Enter for newline
+      </p>
     </div>
   );
 });

@@ -1,6 +1,7 @@
+import { motion } from "framer-motion";
+import { Trash2 } from "lucide-react";
 import type { Personality, PersonalityKey } from "../types";
 import { META } from "../personalities";
-import { ICONS, SparkIcon, TrashIcon } from "../icons";
 
 type Props = {
   personalities: Record<PersonalityKey, Personality>;
@@ -24,29 +25,56 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <div className="sidebar-logo"><SparkIcon /></div>
+        <motion.div
+          className="sidebar-logo"
+          key={active}
+          initial={{ scale: 0.8, rotate: -10 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        >
+          {META[active].emoji}
+        </motion.div>
         <div>
-          <div className="sidebar-title">Personalities</div>
-          <div className="sidebar-subtitle">{availableOrder.length} available</div>
+          <div className="sidebar-title">Persona</div>
+          <div className="sidebar-subtitle">{availableOrder.length} personalities</div>
         </div>
       </div>
 
       <nav className="sidebar-nav">
-        {availableOrder.map((key) => (
-          <button
-            key={key}
-            className={`nav-item nav-${key} ${active === key ? "nav-active" : ""}`}
-            onClick={() => onPick(key)}
-            disabled={streaming}
-          >
-            <span className="nav-icon">{ICONS[key]}</span>
-            <span className="nav-text">
-              <span className="nav-name">{personalities[key].name}</span>
-              <span className="nav-tag">{META[key].tagline}</span>
-            </span>
-            {active === key && <span className="nav-dot" />}
-          </button>
-        ))}
+        {availableOrder.map((key) => {
+          const isActive = active === key;
+          const meta = META[key];
+          
+          return (
+            <motion.button
+              key={key}
+              className={`nav-item nav-${key} ${isActive ? "nav-active" : ""}`}
+              onClick={() => onPick(key)}
+              disabled={streaming}
+              whileHover={{ scale: streaming ? 1 : 1.01 }}
+              whileTap={{ scale: streaming ? 1 : 0.98 }}
+            >
+              <motion.span
+                className="nav-icon"
+                animate={isActive ? { scale: [1, 1.1, 1] } : {}}
+                transition={{ duration: 0.3 }}
+              >
+                {meta.emoji}
+              </motion.span>
+              <span className="nav-text">
+                <span className="nav-name">{personalities[key].name}</span>
+                <span className="nav-tag">{meta.tagline}</span>
+              </span>
+              {isActive && (
+                <motion.span
+                  className="nav-dot"
+                  layoutId="active-dot"
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
+            </motion.button>
+          );
+        })}
       </nav>
 
       <div className="sidebar-footer">
@@ -55,7 +83,7 @@ export function Sidebar({
           onClick={onClear}
           disabled={streaming || itemCount === 0}
         >
-          <TrashIcon />
+          <Trash2 size={14} />
           <span>Clear conversation</span>
         </button>
       </div>

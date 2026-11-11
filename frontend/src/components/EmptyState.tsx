@@ -1,6 +1,6 @@
+import { motion } from "framer-motion";
 import type { Personality, PersonalityKey } from "../types";
 import { META } from "../personalities";
-import { ICONS } from "../icons";
 
 type Props = {
   personalities: Record<PersonalityKey, Personality>;
@@ -21,33 +21,70 @@ const SUGGESTIONS: Record<PersonalityKey, string[]> = {
   roaster: ["Roast my codebase", "Critique my Tinder bio: '...'", "Roast my New Year resolutions"],
 };
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.1 }
+  }
+} as const;
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as const } }
+};
+
 export function EmptyState({ personalities, active, onSuggest }: Props) {
   const name = personalities[active]?.name ?? active;
   const meta = META[active];
   const suggestions = SUGGESTIONS[active];
 
   return (
-    <div className="empty">
-      <div className={`empty-hero hero-${active}`}>
-        <div className="empty-icon">{ICONS[active]}</div>
-        <h2>Talking to <span className="empty-name">{name}</span></h2>
+    <motion.div
+      className="empty"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      key={active}
+    >
+      <motion.div className="empty-hero" variants={itemVariants}>
+        <motion.div
+          className="empty-icon"
+          initial={{ scale: 0.5, rotate: -20 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.1 }}
+        >
+          {meta.emoji}
+        </motion.div>
+        <h2>
+          Talk to <span className="empty-name">{name}</span>
+        </h2>
         <p className="empty-sub">{meta.description}</p>
-      </div>
+      </motion.div>
 
-      <div className="empty-suggestions">
+      <motion.div className="empty-suggestions" variants={itemVariants}>
         <div className="empty-suggestions-label">Try one of these</div>
         <div className="empty-suggestions-grid">
-          {suggestions.map((s) => (
-            <button key={s} className="suggestion" onClick={() => onSuggest(s)}>
+          {suggestions.map((s, i) => (
+            <motion.button
+              key={s}
+              className="suggestion"
+              onClick={() => onSuggest(s)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 + i * 0.08 }}
+            >
               {s}
-            </button>
+            </motion.button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
-      <p className="empty-hint">
-        Switch personalities anytime from the sidebar, or by typing "talk like an interviewer".
-      </p>
-    </div>
+      <motion.p className="empty-hint" variants={itemVariants}>
+        Switch personalities from the sidebar, or type "talk like a mentor"
+      </motion.p>
+    </motion.div>
   );
 }
