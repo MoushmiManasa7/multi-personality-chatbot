@@ -1,12 +1,12 @@
 # Personality Chatbot
 
-A chatbot with multiple personalities powered by Groq's Llama 3.3 70B model. Switch between personas like Strict Mentor, Funny Friend, Technical Expert, and more.
+A chatbot with multiple personalities powered by Groq. Switch between personas like Strict Mentor, Funny Friend, Technical Expert, and more.
 
 ## Architecture
 
 - **Frontend**: Vite + React + TypeScript (static SPA)
 - **Backend**: FastAPI with SSE streaming (serverless Python)
-- **AI**: Groq API (Llama 3.3 70B)
+- **AI**: Groq API (configurable model)
 
 ## Local Development
 
@@ -70,6 +70,7 @@ The project auto-configures from `vercel.json`. No manual settings needed:
 | Variable | Description | Where to get it |
 |----------|-------------|-----------------|
 | `GROQ_API_KEY` | Groq API key for LLM calls | [console.groq.com](https://console.groq.com) |
+| `GROQ_MODEL` | Model ID (optional, default: `openai/gpt-oss-120b`) | [Groq models](https://console.groq.com/docs/models) |
 
 ## Tech Stack
 

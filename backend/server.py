@@ -132,7 +132,7 @@ PersonalityKey = Literal[
 ]
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-MODEL = "llama-3.3-70b-versatile"
+MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 
 
 def detect_mode_switch(user_input: str) -> str | None:
@@ -223,9 +223,10 @@ async def chat(req: ChatRequest):
             async for chunk in response:
                 if not chunk.choices:
                     continue
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    yield sse({"type": "text", "text": delta})
+                delta = chunk.choices[0].delta
+                content = getattr(delta, "content", None)
+                if content:
+                    yield sse({"type": "text", "text": content})
             yield sse({"type": "done"})
         except Exception as e:
             yield sse({"type": "error", "message": str(e)})
