@@ -8,12 +8,13 @@ type Props = {
   onSend: () => void;
   disabled: boolean;
   placeholder: string;
+  accentColor?: string;
 };
 
 export type ComposerHandle = { focus: () => void };
 
 export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
-  { value, onChange, onSend, disabled, placeholder },
+  { value, onChange, onSend, disabled, placeholder, accentColor },
   handleRef,
 ) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -25,7 +26,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   useEffect(() => {
     if (!ref.current) return;
     ref.current.style.height = "auto";
-    ref.current.style.height = `${Math.min(ref.current.scrollHeight, 180)}px`;
+    ref.current.style.height = `${Math.min(ref.current.scrollHeight, 160)}px`;
   }, [value]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -36,7 +37,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   }
 
   return (
-    <div className="composer">
+    <div className="composer" style={{ "--composer-color": accentColor } as React.CSSProperties}>
       <div className="composer-inner">
         <textarea
           ref={ref}
@@ -59,7 +60,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         </motion.button>
       </div>
       <p className="composer-hint">
-        Enter to send · Shift + Enter for newline
+        Enter to send · Shift+Enter for newline
       </p>
     </div>
   );

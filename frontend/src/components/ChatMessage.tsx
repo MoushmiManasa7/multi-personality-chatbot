@@ -42,6 +42,7 @@ export function ChatMessage({ item, personalities }: Props) {
 
   const personality = item.personality ?? "friend";
   const meta = META[personality];
+  const Icon = meta.icon;
 
   async function handleCopy() {
     try {
@@ -55,12 +56,15 @@ export function ChatMessage({ item, personalities }: Props) {
 
   return (
     <motion.div
-      className={`row row-assistant assistant-${personality}`}
+      className={`row row-assistant`}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
+      style={{ "--msg-color": meta.color } as React.CSSProperties}
     >
-      <div className="avatar">{meta.emoji}</div>
+      <div className="avatar">
+        <Icon size={18} />
+      </div>
       <div className="msg-body">
         <div className="msg-header">
           <div className="msg-name">{personalities[personality]?.name ?? personality}</div>
@@ -84,15 +88,19 @@ type TypingProps = {
 
 export function TypingIndicator({ active, activeName }: TypingProps) {
   const meta = META[active];
+  const Icon = meta.icon;
   
   return (
     <motion.div
-      className={`row row-assistant assistant-${active}`}
+      className="row row-assistant"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
+      style={{ "--msg-color": meta.color } as React.CSSProperties}
     >
-      <div className="avatar">{meta.emoji}</div>
+      <div className="avatar">
+        <Icon size={18} />
+      </div>
       <div className="msg-body">
         <div className="msg-name">{activeName}</div>
         <div className="bubble bubble-assistant typing">
