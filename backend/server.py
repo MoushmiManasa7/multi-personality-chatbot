@@ -133,7 +133,29 @@ PersonalityKey = Literal[
 ]
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-MODEL = "llama-3.3-70b-versatile"
+DEFAULT_MODEL = "llama-3.3-70b-versatile"
+MISSING_KEY_MESSAGE = (
+    "GROQ_API_KEY is not set. Get a free key at https://console.groq.com "
+    "and put it in backend/.env (see .env.example) or export it in your shell."
+)
+
+_client: AsyncOpenAI | None = None
+
+
+def get_model() -> str:
+    return os.environ.get("GROQ_MODEL", DEFAULT_MODEL)
+
+
+def get_client() -> AsyncOpenAI:
+    """Create the Groq client only after a key is present, so a missing key
+    raises a clear error instead of an OpenAI SDK credentials crash."""
+    global _client
+    api_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError(MISSING_KEY_MESSAGE)
+    if _client is None:
+        _client = AsyncOpenAI(api_key=api_key, base_url=GROQ_BASE_URL)
+    return _client
 
 
 def detect_mode_switch(user_input: str) -> str | None:
@@ -164,11 +186,7 @@ class ChatRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    if not os.environ.get("GROQ_API_KEY"):
-        raise RuntimeError(
-            "GROQ_API_KEY is not set. Get a free key at https://console.groq.com "
-            "and put it in backend/.env (see .env.example) or export it in your shell."
-        )
+    get_client()
     yield
 
 
@@ -180,12 +198,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-client = AsyncOpenAI(
-    api_key=os.environ.get("GROQ_API_KEY", ""),
-    base_url=GROQ_BASE_URL,
-)
-
 
 def sse(payload: dict) -> str:
     return f"data: {json.dumps(payload)}\n\n"
@@ -220,8 +232,8 @@ async def chat(req: ChatRequest):
         ]
 
         try:
-            response = await client.chat.completions.create(
-                model=MODEL,
+            response = await get_client().chat.completions.create(
+                model=get_model(),
                 messages=api_messages,
                 stream=True,
                 max_tokens=2048,
